@@ -56,7 +56,10 @@ pub struct PcModel {
 
 fn softmax(v: &[f32], temp: f32) -> Vec<f32> {
     let max = v.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-    let exps: Vec<f32> = v.iter().map(|x| ((x - max) / temp).exp()).collect();
+    let exps: Vec<f32> = v
+        .iter()
+        .map(|x| crate::det::exp((x - max) / temp))
+        .collect();
     let sum: f32 = exps.iter().sum();
     exps.into_iter().map(|e| e / sum).collect()
 }
@@ -102,7 +105,9 @@ impl PcModel {
         let mut pred = vec![0.0; self.window_dim()];
         let mut back = vec![0.0; h];
         for _ in 0..self.cfg.infer_steps {
-            act.iter_mut().zip(&z).for_each(|(a, zv)| *a = zv.tanh());
+            act.iter_mut()
+                .zip(&z)
+                .for_each(|(a, zv)| *a = crate::det::tanh(*zv));
             self.w.mul_vec(&act, &mut pred);
             for (i, p) in pred.iter_mut().enumerate() {
                 *p = if i < observed { x[i] - *p } else { 0.0 };
@@ -113,7 +118,9 @@ impl PcModel {
                 z[j] += self.cfg.infer_rate * (back[j] * d - 0.01 * z[j]);
             }
         }
-        act.iter_mut().zip(&z).for_each(|(a, zv)| *a = zv.tanh());
+        act.iter_mut()
+            .zip(&z)
+            .for_each(|(a, zv)| *a = crate::det::tanh(*zv));
         (z, act)
     }
 
@@ -126,6 +133,13 @@ impl PcModel {
         let mut pred = vec![0.0; self.window_dim()];
         self.w.mul_vec(&act, &mut pred);
         softmax(&pred[observed..], 0.25)
+    }
+
+    /// Distribution over the next symbol given the stream so far, or `None`
+    /// while fewer than `context` symbols have been observed.
+    pub fn next_distribution(&self) -> Option<Vec<f32>> {
+        let k = self.cfg.context;
+        (self.history.len() >= k).then(|| self.predict(&self.history[self.history.len() - k..]))
     }
 
     /// Learn from one full window (context followed by its next symbol).
@@ -151,7 +165,7 @@ impl PcModel {
         if self.history.len() >= k {
             let ctx: Vec<usize> = self.history[self.history.len() - k..].to_vec();
             let probs = self.predict(&ctx);
-            step.surprise = -(probs[symbol].max(1e-9)).log2();
+            step.surprise = -crate::det::log2(probs[symbol].max(1e-9));
             step.predicted = Some(probs);
             let mut window = ctx;
             window.push(symbol);

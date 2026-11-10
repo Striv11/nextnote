@@ -29,6 +29,8 @@ it runs entirely in your browser: no server, no API keys, nothing leaves your de
  learn:   clamp all K+1 notes, relax z, W += lr · error · aᵀ        (local rule)
  surprise = -log2 p(actual note)
 ```
+- `src/det.rs`: `exp`/`tanh`/`log2` from plain IEEE arithmetic, so native and WASM agree bit-for-bit (platform libm does not).
+- `src/ffi.rs`: the `nn_*` C ABI (`nn_new`, `nn_observe`, `nn_predict`, `nn_reset_context`, `nn_free`, `nn_alloc`, `nn_dealloc`); `web/nextnote.js` wraps it.
 - `src/rng.rs`: deterministic splitmix64 (reproducible, no OS randomness needed in WASM).
 - `src/mat.rs`: minimal dense matrix ops.
 - `src/model.rs`: the predictive-coding model (`PcModel`).
@@ -39,7 +41,7 @@ Invariants: same seed and same input gives bit-identical behaviour; predictions 
 ## Setup
 Prerequisites: Rust stable (with `rustfmt`, `clippy`; add `wasm32-unknown-unknown` for the web build).
 ```
-bash check.sh        # fmt check, clippy, tests
+bash check.sh        # fmt, clippy, Rust tests, wasm build, Node bridge test (needs Node 20+)
 cargo run --release  # terminal demo
 ```
 
@@ -58,7 +60,7 @@ The interactive in-browser instrument is **planned** (see [PLAN.md](PLAN.md), da
 
 ## Roadmap
 - [x] Predictive-coding core with tests (day 1)
-- [ ] WASM build and bridge (day 2)
+- [x] WASM build and bridge (day 2)
 - [ ] Playable instrument UI (day 3)
 - [ ] Surprise and activity visuals, e2e tests (day 4)
 - [ ] Two-layer model (day 5)

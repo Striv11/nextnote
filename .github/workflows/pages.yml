@@ -17,7 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-      # From day 2 on this builds the WebAssembly module into web/ first.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Build WebAssembly into the site
+        run: |
+          cargo build --target wasm32-unknown-unknown --release --lib
+          cp target/wasm32-unknown-unknown/release/nextnote.wasm web/nextnote.wasm
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web

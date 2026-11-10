@@ -9,3 +9,10 @@ Newest entries at the bottom. Each entry records what actually changed, what was
 - Surprise floors around 7.5 bits because softmax temperature is fixed; may tune or calibrate on day 5.
 - Added CI (fmt, clippy, test), a placeholder landing page and the Pages workflow.
 - Next: day 2, WASM C-ABI bridge plus a Node test that matches Rust output exactly.
+
+## 2026-11-10 (day 2)
+- Added the C-ABI bridge (`src/ffi.rs`): `nn_new/observe/predict/reset_context/free` plus `nn_alloc/dealloc` for result buffers. Invalid input returns null or a negative code instead of panicking (release uses `panic = "abort"`, which would trap the wasm instance).
+- `web/nextnote.js` wraps the ABI; `web/test/bridge.test.mjs` loads the real .wasm in Node.
+- Learned: the first golden comparison failed. Native and wasm differed in the last bits of `exp`/`tanh`/`log2` because libm differs per target, so "same seed, same output" was false across platforms. Fixed at the root with `src/det.rs` (pure +,-,*,/ in f64). Now an FNV hash over every per-note surprise bit pattern is identical in Rust (native) and Node (wasm): same golden constant in both tests.
+- `check.sh` and CI now build wasm and run the Node test; pages.yml copies the wasm into the site (ignored by git).
+- Next: day 3, playable keyboard UI with Web Audio and ghost-key predictions.
