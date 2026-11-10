@@ -24,7 +24,7 @@ jobs:
         run: |
           cargo build --target wasm32-unknown-unknown --release --lib
           cp target/wasm32-unknown-unknown/release/nextnote.wasm web/nextnote.wasm
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: web
   deploy:
