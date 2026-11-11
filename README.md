@@ -4,7 +4,7 @@
 
 ![CI](https://github.com/Striv11/nextnote/actions/workflows/ci.yml/badge.svg)
 
-**Live demo:** https://striv11.github.io/nextnote/ (landing page now; the playable instrument arrives on day 3)
+**Live demo:** https://striv11.github.io/nextnote/ (playable keyboard with ghost-key predictions)
 
 ## Problem
 Most "AI learns music" demos are opaque: you train offline and get output. It is hard to *see* what a model
@@ -34,7 +34,7 @@ it runs entirely in your browser: no server, no API keys, nothing leaves your de
 - `src/rng.rs`: deterministic splitmix64 (reproducible, no OS randomness needed in WASM).
 - `src/mat.rs`: minimal dense matrix ops.
 - `src/model.rs`: the predictive-coding model (`PcModel`).
-- `web/`: the static site (WASM bridge and UI land in days 2-4).
+- `web/`: the static site. `music.js` is pure, unit-tested logic; `app.js` is the DOM/Web Audio glue.
 
 Invariants: same seed and same input gives bit-identical behaviour; predictions always form a probability distribution.
 
@@ -49,7 +49,7 @@ cargo run --release  # terminal demo
 Terminal demo works today (`cargo run --release`): it loops a 14-note tune and prints total surprise per pass; the
 bar shrinks from ~45 bits on pass 1 to ~7.5 bits by pass 60 as the model learns it.
 
-The interactive in-browser instrument is **planned** (see [PLAN.md](PLAN.md), days 3-4).
+The in-browser instrument (`web/`): click, tap or type `A W S E D F T G Y H U J` to play; the model's expected next key is outlined and probability bars show its full prediction. Surprise/activity visuals arrive on day 4 (see [PLAN.md](PLAN.md)). To try locally: build the wasm, copy it to `web/nextnote.wasm`, and serve `web/` (e.g. `python3 -m http.server -d web`).
 
 ## Design decisions & trade-offs
 - One-hot window of the last K notes instead of a recurrent state: simple, local, and easy to visualize; a second
@@ -61,7 +61,7 @@ The interactive in-browser instrument is **planned** (see [PLAN.md](PLAN.md), da
 ## Roadmap
 - [x] Predictive-coding core with tests (day 1)
 - [x] WASM build and bridge (day 2)
-- [ ] Playable instrument UI (day 3)
+- [x] Playable instrument UI (day 3)
 - [ ] Surprise and activity visuals, e2e tests (day 4)
 - [ ] Two-layer model (day 5)
 - [ ] Improvisation, presets, persistence (day 6)

@@ -8,4 +8,4 @@ cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 # WebAssembly build and the Node test that loads it through the C ABI.
 cargo build --target wasm32-unknown-unknown --release --lib
-node --test web/test/bridge.test.mjs
+node --test web/test/bridge.test.mjs web/test/music.test.mjs

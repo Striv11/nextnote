@@ -16,3 +16,10 @@ Newest entries at the bottom. Each entry records what actually changed, what was
 - Learned: the first golden comparison failed. Native and wasm differed in the last bits of `exp`/`tanh`/`log2` because libm differs per target, so "same seed, same output" was false across platforms. Fixed at the root with `src/det.rs` (pure +,-,*,/ in f64). Now an FNV hash over every per-note surprise bit pattern is identical in Rust (native) and Node (wasm): same golden constant in both tests.
 - `check.sh` and CI now build wasm and run the Node test; pages.yml copies the wasm into the site (ignored by git).
 - Next: day 3, playable keyboard UI with Web Audio and ghost-key predictions.
+
+## 2026-11-11 (day 3)
+- Built the playable instrument: 12-key piano (pointer/touch + computer keys), Web Audio triangle-wave tones, every note goes through the wasm model, the predicted next key gets an orange "ghost" outline, probability bars for all 12 notes, empty state, loading/error state, reset button, light/dark via `prefers-color-scheme`.
+- Kept logic (key map, frequencies, argmax, surprise, bar scaling) in `web/music.js` with 6 Node tests; `app.js` is thin DOM glue. `check.sh` runs both Node test files.
+- Limitation: I could not drive a real browser in this environment, so the DOM/audio layer is only syntax-checked (`node --check`), not exercised. Playwright e2e (day 4) should cover it.
+- Learned: the first `check.sh` run failed only because the wasm target was still being installed; a rerun was green.
+- Next: day 4, surprise timeline canvas, latent heatmap, error view, Playwright e2e.

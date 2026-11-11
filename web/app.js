@@ -1,0 +1,99 @@
+import { load } from "./nextnote.js";
+import { NOTE_NAMES, IS_BLACK, noteForKey, noteFrequency, topPrediction, surpriseBits, barHeights } from "./music.js";
+
+const $ = (id) => document.getElementById(id);
+const status = $("status");
+let model = null, probs = null, audio = null, played = 0, lastBits = null;
+
+function beep(note) {
+  audio ??= new (window.AudioContext || window.webkitAudioContext)();
+  if (audio.state === "suspended") audio.resume();
+  const t = audio.currentTime, osc = audio.createOscillator(), g = audio.createGain();
+  osc.type = "triangle";
+  osc.frequency.value = noteFrequency(note);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+  osc.connect(g).connect(audio.destination);
+  osc.start(t);
+  osc.stop(t + 0.65);
+}
+
+const keyEls = [], barEls = [];
+function build() {
+  const kb = $("keys"), bars = $("bars");
+  NOTE_NAMES.forEach((name, i) => {
+    const k = document.createElement("button");
+    k.className = "key " + (IS_BLACK[i] ? "black" : "white");
+    k.type = "button";
+    k.textContent = name;
+    k.setAttribute("aria-label", `Play ${name}`);
+    k.addEventListener("pointerdown", (e) => { e.preventDefault(); play(i); });
+    kb.appendChild(k);
+    keyEls.push(k);
+    const b = document.createElement("div");
+    b.className = "bar";
+    b.innerHTML = `<div class="fill"></div><span>${name}</span>`;
+    bars.appendChild(b);
+    barEls.push(b);
+  });
+}
+
+function render() {
+  const top = topPrediction(probs);
+  keyEls.forEach((k, i) => k.classList.toggle("ghost", !!top && top.note === i));
+  const h = barHeights(probs);
+  barEls.forEach((b, i) => {
+    b.firstChild.style.height = `${Math.round((h[i] ?? 0) * 100)}%`;
+    b.title = probs ? `${NOTE_NAMES[i]}: ${(probs[i] * 100).toFixed(1)}%` : "";
+  });
+  $("empty").hidden = played > 0;
+  $("readout").textContent = top
+    ? `Expecting ${NOTE_NAMES[top.note]} (${(top.p * 100).toFixed(0)}%)` +
+      (lastBits !== null ? `, last surprise ${lastBits.toFixed(1)} bits` : "")
+    : played > 0 ? "Keep playing: the model needs a few notes of context." : "";
+}
+
+function play(note) {
+  if (!model) return;
+  const el = keyEls[note];
+  el.classList.add("down");
+  setTimeout(() => el.classList.remove("down"), 150);
+  beep(note);
+  lastBits = surpriseBits(probs, note); // how surprised were we by this note?
+  model.observe(note);
+  played++;
+  probs = model.predict();
+  render();
+}
+
+addEventListener("keydown", (e) => {
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  const n = noteForKey(e.key);
+  if (n >= 0) play(n);
+});
+
+$("reset").addEventListener("click", () => {
+  if (!model) return;
+  model.free();
+  model = start();
+  probs = null; played = 0; lastBits = null;
+  render();
+});
+
+let wasm;
+function start() { return wasm.create(12, 3, 24, 1); }
+
+build();
+render();
+try {
+  const res = await fetch("nextnote.wasm");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  wasm = await load(await res.arrayBuffer());
+  model = start();
+  status.textContent = "Ready";
+  document.body.classList.add("ready");
+} catch (err) {
+  status.textContent = `Could not load the model (${err.message}). The keys will stay silent.`;
+  status.classList.add("error");
+}
