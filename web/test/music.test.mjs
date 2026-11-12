@@ -36,3 +36,28 @@ test("barHeights normalises to the tallest bar", () => {
   assert.deepEqual(barHeights([0.1, 0.4, 0.2]), [0.25, 1, 0.5]);
   assert.deepEqual(barHeights(null), []);
 });
+
+import { pushHistory, surpriseLevel, divergingColor } from "../music.js";
+
+test("pushHistory keeps only the newest entries and does not mutate", () => {
+  const h = [1, 2, 3];
+  assert.deepEqual(pushHistory(h, 4, 3), [2, 3, 4]);
+  assert.deepEqual(h, [1, 2, 3]);
+  assert.deepEqual(pushHistory([], 7), [7]);
+});
+
+test("surpriseLevel scales to log2(vocab) bits and clamps", () => {
+  assert.equal(surpriseLevel(null), 0);
+  assert.equal(surpriseLevel(0), 0);
+  assert.ok(Math.abs(surpriseLevel(Math.log2(12) / 2) - 0.5) < 1e-12);
+  assert.equal(surpriseLevel(40), 1);
+  assert.equal(surpriseLevel(-1), 0);
+});
+
+test("divergingColor is neutral at 0, warm positive, cool negative, clamped", () => {
+  assert.equal(divergingColor(0), "rgb(128, 128, 138)");
+  assert.equal(divergingColor(1), "rgb(242, 163, 58)");
+  assert.equal(divergingColor(-1), "rgb(70, 120, 220)");
+  assert.equal(divergingColor(5), divergingColor(1));
+  assert.equal(divergingColor(NaN), divergingColor(0));
+});

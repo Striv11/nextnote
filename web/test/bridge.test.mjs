@@ -50,3 +50,16 @@ test("invalid input throws instead of trapping", () => {
   assert.throws(() => m.observe(99), /invalid symbol/);
   m.free();
 });
+
+test("activity and error are null until learning, then well-formed", () => {
+  const m = nn.create();
+  assert.equal(m.activity(), null);
+  assert.equal(m.error(), null);
+  TUNE.slice(0, 5).forEach((s) => m.observe(s));
+  const a = m.activity(), e = m.error();
+  assert.equal(a.length, 24);
+  assert.equal(e.length, 12);
+  assert.ok(a.every((v) => Math.abs(v) <= 1));
+  assert.ok(a.some((v) => v !== 0));
+  m.free();
+});

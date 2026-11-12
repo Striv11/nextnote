@@ -23,6 +23,9 @@ p.lead{font-size:1.1rem;color:var(--muted)}
 .bar .fill{width:100%;background:var(--accent);border-radius:3px 3px 0 0;min-height:1px;transition:height .15s}
 #status{color:var(--muted);font-size:.9rem}#status.error{color:#c0392b}
 button#reset{font:inherit;padding:.3rem .9rem;border-radius:8px;border:1px solid var(--muted);background:none;color:var(--fg);cursor:pointer}
+canvas{width:100%;display:block;border-radius:6px;background:color-mix(in srgb,var(--muted) 12%,transparent)}
+h2{font-size:1rem;margin:1rem 0 .3rem}
+.hint{font-size:.85rem;color:var(--muted);margin:.2rem 0}
 body:not(.ready) #keys{opacity:.5;pointer-events:none}
 </style>
 </head>
@@ -37,6 +40,14 @@ body:not(.ready) #keys{opacity:.5;pointer-events:none}
 and the bars below show its probability for every note.</p>
 <p id="readout" aria-live="polite"></p>
 <div id="bars" aria-label="Predicted probability of each next note"></div>
+<h2>Surprise over time</h2>
+<canvas id="timeline" width="640" height="90" role="img" aria-label="Surprise in bits for each recent note"></canvas>
+<p class="hint">Each bar is one note you played: tall means the model did not expect it. Repeat a melody and the bars shrink.</p>
+<h2>Latent activity</h2>
+<canvas id="heat" width="640" height="24" role="img" aria-label="Activity of the model's hidden units"></canvas>
+<h2>Prediction error for the last note</h2>
+<canvas id="errview" width="640" height="24" role="img" aria-label="Prediction error per note for the last note played"></canvas>
+<p class="hint">Orange: the model under-predicted this note. Blue: it over-predicted it. Grey: no error.</p>
 <p><button id="reset" type="button">Reset model</button> <span id="status">Loading model&hellip;</span></p>
 </div>
 <p class="lead" style="font-size:.9rem">Everything runs in your browser (Rust compiled to WebAssembly). Nothing is sent anywhere.</p>

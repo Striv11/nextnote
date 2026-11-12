@@ -1,9 +1,9 @@
 import { load } from "./nextnote.js";
-import { NOTE_NAMES, IS_BLACK, noteForKey, noteFrequency, topPrediction, surpriseBits, barHeights } from "./music.js";
+import { NOTE_NAMES, IS_BLACK, noteForKey, noteFrequency, topPrediction, surpriseBits, barHeights, pushHistory, surpriseLevel, divergingColor } from "./music.js";
 
 const $ = (id) => document.getElementById(id);
 const status = $("status");
-let model = null, probs = null, audio = null, played = 0, lastBits = null;
+let history = [], model = null, probs = null, audio = null, played = 0, lastBits = null;
 
 function beep(note) {
   audio ??= new (window.AudioContext || window.webkitAudioContext)();
@@ -39,7 +39,35 @@ function build() {
   });
 }
 
+function css(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
+
+function drawStrip(id, values, scale) {
+  const c = $(id), g = c.getContext("2d");
+  g.clearRect(0, 0, c.width, c.height);
+  if (!values) return;
+  const w = c.width / values.length;
+  values.forEach((v, i) => { g.fillStyle = divergingColor(v * scale); g.fillRect(i * w + 1, 0, w - 2, c.height); });
+}
+
+function drawTimeline() {
+  const c = $("timeline"), g = c.getContext("2d");
+  g.clearRect(0, 0, c.width, c.height);
+  const w = c.width / 48;
+  g.fillStyle = css("--accent");
+  history.forEach((bits, i) => {
+    const h = Math.max(2, surpriseLevel(bits) * (c.height - 4));
+    g.fillRect(i * w + 1, c.height - h, w - 2, h);
+  });
+}
+
+function drawVisuals() {
+  drawTimeline();
+  drawStrip("heat", model && played ? model.activity() : null, 1);
+  drawStrip("errview", model && played ? model.error() : null, 1);
+}
+
 function render() {
+  drawVisuals();
   const top = topPrediction(probs);
   keyEls.forEach((k, i) => k.classList.toggle("ghost", !!top && top.note === i));
   const h = barHeights(probs);
@@ -63,6 +91,7 @@ function play(note) {
   lastBits = surpriseBits(probs, note); // how surprised were we by this note?
   model.observe(note);
   played++;
+  if (lastBits !== null) history = pushHistory(history, lastBits);
   probs = model.predict();
   render();
 }
@@ -77,7 +106,7 @@ $("reset").addEventListener("click", () => {
   if (!model) return;
   model.free();
   model = start();
-  probs = null; played = 0; lastBits = null;
+  probs = null; played = 0; history = []; lastBits = null;
   render();
 });
 

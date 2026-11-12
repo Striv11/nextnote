@@ -30,7 +30,7 @@ it runs entirely in your browser: no server, no API keys, nothing leaves your de
  surprise = -log2 p(actual note)
 ```
 - `src/det.rs`: `exp`/`tanh`/`log2` from plain IEEE arithmetic, so native and WASM agree bit-for-bit (platform libm does not).
-- `src/ffi.rs`: the `nn_*` C ABI (`nn_new`, `nn_observe`, `nn_predict`, `nn_reset_context`, `nn_free`, `nn_alloc`, `nn_dealloc`); `web/nextnote.js` wraps it.
+- `src/ffi.rs`: the `nn_*` C ABI (`nn_new`, `nn_observe`, `nn_predict`, `nn_reset_context`, `nn_activity`, `nn_error`, `nn_free`, `nn_alloc`, `nn_dealloc`); `web/nextnote.js` wraps it.
 - `src/rng.rs`: deterministic splitmix64 (reproducible, no OS randomness needed in WASM).
 - `src/mat.rs`: minimal dense matrix ops.
 - `src/model.rs`: the predictive-coding model (`PcModel`).
@@ -49,7 +49,7 @@ cargo run --release  # terminal demo
 Terminal demo works today (`cargo run --release`): it loops a 14-note tune and prints total surprise per pass; the
 bar shrinks from ~45 bits on pass 1 to ~7.5 bits by pass 60 as the model learns it.
 
-The in-browser instrument (`web/`): click, tap or type `A W S E D F T G Y H U J` to play; the model's expected next key is outlined and probability bars show its full prediction. Surprise/activity visuals arrive on day 4 (see [PLAN.md](PLAN.md)). To try locally: build the wasm, copy it to `web/nextnote.wasm`, and serve `web/` (e.g. `python3 -m http.server -d web`).
+The in-browser instrument (`web/`): click, tap or type `A W S E D F T G Y H U J` to play; the model's expected next key is outlined and probability bars show its full prediction. Below the keys: a surprise-per-note timeline, a latent-activity strip and a prediction-error strip for the last note (orange = under-predicted, blue = over-predicted). Browser e2e tests are still open (see [PLAN.md](PLAN.md)). To try locally: build the wasm, copy it to `web/nextnote.wasm`, and serve `web/` (e.g. `python3 -m http.server -d web`).
 
 ## Design decisions & trade-offs
 - One-hot window of the last K notes instead of a recurrent state: simple, local, and easy to visualize; a second
@@ -62,7 +62,7 @@ The in-browser instrument (`web/`): click, tap or type `A W S E D F T G Y H U J`
 - [x] Predictive-coding core with tests (day 1)
 - [x] WASM build and bridge (day 2)
 - [x] Playable instrument UI (day 3)
-- [ ] Surprise and activity visuals, e2e tests (day 4)
+- [~] Surprise and activity visuals (done), e2e tests (open) (day 4)
 - [ ] Two-layer model (day 5)
 - [ ] Improvisation, presets, persistence (day 6)
 - [ ] Benchmarks, screenshots, polish (day 7)

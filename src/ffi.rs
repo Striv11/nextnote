@@ -65,6 +65,41 @@ pub unsafe extern "C" fn nn_predict(m: *const PcModel, out: *mut f32, cap: u32) 
     }
 }
 
+unsafe fn copy_out(src: &[f32], out: *mut f32, cap: u32) -> i32 {
+    if out.is_null() || (cap as usize) < src.len() {
+        return NN_ERR;
+    }
+    std::ptr::copy_nonoverlapping(src.as_ptr(), out, src.len());
+    src.len() as i32
+}
+
+/// Copy the latent activity of the last learning step into `out`. Returns
+/// the count written (0 before any learning) or `NN_ERR` for a null handle
+/// or too small a buffer (`cap` must be >= `hidden`).
+///
+/// # Safety
+/// `m` must be null or from `nn_new`; `out` valid for `cap` f32 writes.
+#[no_mangle]
+pub unsafe extern "C" fn nn_activity(m: *const PcModel, out: *mut f32, cap: u32) -> i32 {
+    match m.as_ref() {
+        Some(model) => copy_out(model.activity(), out, cap),
+        None => NN_ERR,
+    }
+}
+
+/// Copy the newest-note prediction error (`vocab` floats) of the last
+/// learning step into `out`. Same return convention as `nn_activity`.
+///
+/// # Safety
+/// `m` must be null or from `nn_new`; `out` valid for `cap` f32 writes.
+#[no_mangle]
+pub unsafe extern "C" fn nn_error(m: *const PcModel, out: *mut f32, cap: u32) -> i32 {
+    match m.as_ref() {
+        Some(model) => copy_out(model.error(), out, cap),
+        None => NN_ERR,
+    }
+}
+
 /// Forget the recent stream but keep learned weights.
 ///
 /// # Safety
@@ -110,6 +145,29 @@ mod tests {
     use super::*;
 
     pub const TUNE: [u32; 14] = [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0];
+
+    #[test]
+    fn activity_and_error_are_exposed_and_validated() {
+        unsafe {
+            let m = nn_new(12, 3, 24, 1);
+            let buf = nn_alloc(24);
+            assert_eq!(nn_activity(m, buf, 24), 0, "nothing learned yet");
+            assert_eq!(nn_error(m, buf, 24), 0);
+            for &n in TUNE.iter().take(6) {
+                nn_observe(m, n);
+            }
+            assert_eq!(nn_activity(m, buf, 24), 24);
+            let act = std::slice::from_raw_parts(buf, 24).to_vec();
+            assert!(act.iter().all(|a| a.abs() <= 1.0));
+            assert!(act.iter().any(|a| a.abs() > 0.0));
+            assert_eq!(nn_activity(m, buf, 23), NN_ERR, "buffer too small");
+            assert_eq!(nn_error(m, buf, 12), 12);
+            assert_eq!(nn_error(m, std::ptr::null_mut(), 12), NN_ERR);
+            assert_eq!(nn_error(std::ptr::null(), buf, 12), NN_ERR);
+            nn_dealloc(buf, 24);
+            nn_free(m);
+        }
+    }
 
     #[test]
     fn matches_the_safe_api_bit_for_bit() {

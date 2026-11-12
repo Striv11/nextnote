@@ -23,3 +23,10 @@ Newest entries at the bottom. Each entry records what actually changed, what was
 - Limitation: I could not drive a real browser in this environment, so the DOM/audio layer is only syntax-checked (`node --check`), not exercised. Playwright e2e (day 4) should cover it.
 - Learned: the first `check.sh` run failed only because the wasm target was still being installed; a rerun was green.
 - Next: day 4, surprise timeline canvas, latent heatmap, error view, Playwright e2e.
+
+## 2026-11-12 (day 4)
+- `PcModel` now keeps the latent activity and newest-slot prediction error of its last learning step (`activity()`, `error()`); exposed over the ABI as `nn_activity`/`nn_error` and in `web/nextnote.js`. Numerics untouched: the golden hash still matches.
+- UI: surprise-per-note timeline, latent-activity strip and prediction-error strip (canvas). Pure helpers (`pushHistory`, `surpriseLevel`, `divergingColor`) are unit-tested in Node; Rust and Node bridge tests cover the new calls, including too-small-buffer and null-handle errors.
+- Not done: Playwright e2e. No browser or Playwright is installed here, and I did not want to claim coverage I cannot run. The canvas drawing is only syntax-checked.
+- Learned: `check.sh` failed at first because the wasm target was missing in this environment; `rustup target add wasm32-unknown-unknown` fixed it.
+- Next: finish day 4 with Playwright e2e where a browser is available, then day 5 (two-layer model).

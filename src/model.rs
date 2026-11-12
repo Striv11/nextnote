@@ -52,6 +52,10 @@ pub struct PcModel {
     cfg: Config,
     w: Mat,
     history: Vec<usize>,
+    /// Latent activity from the most recent learning step (empty before any).
+    last_activity: Vec<f32>,
+    /// Reconstruction error of the newest-note slot in the most recent step.
+    last_error: Vec<f32>,
 }
 
 fn softmax(v: &[f32], temp: f32) -> Vec<f32> {
@@ -76,6 +80,8 @@ impl PcModel {
             cfg,
             w,
             history: Vec::new(),
+            last_activity: Vec::new(),
+            last_error: Vec::new(),
         }
     }
 
@@ -151,6 +157,20 @@ impl PcModel {
         self.w.mul_vec(&act, &mut pred);
         let err: Vec<f32> = x.iter().zip(&pred).map(|(a, b)| a - b).collect();
         self.w.add_outer(self.cfg.learn_rate, &err, &act);
+        self.last_error = err[dim - self.cfg.vocab..].to_vec();
+        self.last_activity = act;
+    }
+
+    /// Latent activity (tanh of the relaxed state) from the latest learning
+    /// step; empty until the model has learned from a full window.
+    pub fn activity(&self) -> &[f32] {
+        &self.last_activity
+    }
+
+    /// Prediction error (target minus reconstruction) on the newest-note slot
+    /// from the latest learning step; empty until then.
+    pub fn error(&self) -> &[f32] {
+        &self.last_error
     }
 
     /// Feed the next symbol of the stream: predict it, score the surprise,
@@ -187,6 +207,18 @@ impl PcModel {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exposes_activity_and_error_after_learning() {
+        let mut m = PcModel::new(Config::default());
+        assert!(m.activity().is_empty() && m.error().is_empty());
+        for s in [0, 1, 2, 3, 4] {
+            m.observe(s);
+        }
+        assert_eq!(m.activity().len(), m.config().hidden);
+        assert_eq!(m.error().len(), m.config().vocab);
+        assert!(m.activity().iter().all(|a| a.abs() <= 1.0));
+    }
 
     fn argmax(v: &[f32]) -> usize {
         v.iter()

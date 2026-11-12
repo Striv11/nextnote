@@ -39,3 +39,27 @@ export function barHeights(probs) {
   const max = Math.max(...probs, 1e-12);
   return Array.from(probs, (p) => p / max);
 }
+
+/** Append to a fixed-length history, dropping the oldest entries. Returns a new array. */
+export function pushHistory(history, value, max = 48) {
+  const next = [...history, value];
+  return next.length > max ? next.slice(next.length - max) : next;
+}
+
+/** Map surprise (bits) to a bar height in 0..1 on a log2(vocab)-bit scale; null (warm-up) is 0. */
+export function surpriseLevel(bits, vocab = 12) {
+  if (bits === null || bits === undefined || !(bits >= 0)) return 0;
+  return Math.min(1, bits / Math.log2(vocab));
+}
+
+/**
+ * Diverging colour for a signed value in [-1, 1]: negative is blue, positive is orange,
+ * zero is neutral grey. Returns an "rgb(r, g, b)" string. Values are clamped.
+ */
+export function divergingColor(v) {
+  const t = Math.max(-1, Math.min(1, Number.isFinite(v) ? v : 0));
+  const mix = (a, b, f) => Math.round(a + (b - a) * f);
+  const grey = [128, 128, 138], pos = [242, 163, 58], neg = [70, 120, 220];
+  const target = t >= 0 ? pos : neg, f = Math.abs(t);
+  return `rgb(${mix(grey[0], target[0], f)}, ${mix(grey[1], target[1], f)}, ${mix(grey[2], target[2], f)})`;
+}
