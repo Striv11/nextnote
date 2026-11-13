@@ -3,8 +3,8 @@ export async function load(source) {
   const { instance } = await WebAssembly.instantiate(source, {});
   const x = instance.exports;
   return {
-    create(vocab = 12, context = 3, hidden = 24, seed = 1) {
-      const h = x.nn_new(vocab, context, hidden, seed);
+    create(vocab = 12, context = 3, hidden = 24, seed = 1, layers = 1) {
+      const h = x.nn_new_layered(vocab, context, hidden, seed, layers);
       if (!h) throw new Error("nn_new: invalid model dimensions");
       const buf = x.nn_alloc(vocab);
       const abuf = x.nn_alloc(hidden);

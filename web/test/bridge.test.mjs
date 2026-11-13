@@ -63,3 +63,12 @@ test("activity and error are null until learning, then well-formed", () => {
   assert.ok(a.some((v) => v !== 0));
   m.free();
 });
+
+test("layered model: layers option validated, 2 layers differs from 1", () => {
+  assert.throws(() => nn.create(12, 3, 24, 1, 3), /invalid/);
+  const a = nn.create(12, 3, 24, 1, 1), b = nn.create(12, 3, 24, 1, 2);
+  let diff = false;
+  for (const s of TUNE.concat(TUNE)) diff ||= a.observe(s) !== b.observe(s);
+  assert.ok(diff);
+  a.free(); b.free();
+});

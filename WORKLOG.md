@@ -30,3 +30,10 @@ Newest entries at the bottom. Each entry records what actually changed, what was
 - Not done: Playwright e2e. No browser or Playwright is installed here, and I did not want to claim coverage I cannot run. The canvas drawing is only syntax-checked.
 - Learned: `check.sh` failed at first because the wasm target was missing in this environment; `rustup target add wasm32-unknown-unknown` fixed it.
 - Next: finish day 4 with Playwright e2e where a browser is available, then day 5 (two-layer model).
+
+## 2026-11-13 (day 5)
+- Added an optional slow top layer to `PcModel` (`Config::slow_decays`): leaky traces of the whole note stream (`t = d*t + onehot`) feed a learned top-down prior (`U`) on the next-note slot. The prior enters inference (explaining away the newest-slot error) and is trained with the same local error x input rule. Empty `slow_decays` is the old model exactly: the golden hash is unchanged.
+- Test: a 15-note melody where `[0,1,2]` is followed by 3, 4 or 5 depending on the earlier phrase. The single layer scores <= 13/15 next-note guesses, the two-layer model >= 14/15 (gap >= 2 asserted). Also tests determinism, reset and invalid decays.
+- Exposed as `nn_new_layered(..., layers)` (the old `nn_new` is untouched), `create(..., layers)` in JS, and a `Memory` selector in the UI that resets the model. Rust and Node tests cover validation.
+- Caveat: the UI selector is not browser-tested (still no browser here), same as day 4. Decays 0.5/0.85 are hand-picked, not tuned.
+- Next: finish day 4 Playwright e2e if a browser is available; otherwise day 6 (improvisation, presets, IndexedDB persistence).

@@ -102,6 +102,7 @@ addEventListener("keydown", (e) => {
   if (n >= 0) play(n);
 });
 
+$("layers").addEventListener("change", () => $("reset").click());
 $("reset").addEventListener("click", () => {
   if (!model) return;
   model.free();
@@ -111,7 +112,7 @@ $("reset").addEventListener("click", () => {
 });
 
 let wasm;
-function start() { return wasm.create(12, 3, 24, 1); }
+function start() { return wasm.create(12, 3, 24, 1, Number($("layers").value)); }
 
 build();
 render();

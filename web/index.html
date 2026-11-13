@@ -48,7 +48,7 @@ and the bars below show its probability for every note.</p>
 <h2>Prediction error for the last note</h2>
 <canvas id="errview" width="640" height="24" role="img" aria-label="Prediction error per note for the last note played"></canvas>
 <p class="hint">Orange: the model under-predicted this note. Blue: it over-predicted it. Grey: no error.</p>
-<p><button id="reset" type="button">Reset model</button> <span id="status">Loading model&hellip;</span></p>
+<p><label>Memory <select id="layers"><option value="1">1 layer (last 3 notes)</option><option value="2">2 layers (adds slow memory)</option></select></label> <button id="reset" type="button">Reset model</button> <span id="status">Loading model&hellip;</span></p>
 </div>
 <p class="lead" style="font-size:.9rem">Everything runs in your browser (Rust compiled to WebAssembly). Nothing is sent anywhere.</p>
 </main>
