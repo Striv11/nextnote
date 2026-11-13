@@ -22,6 +22,11 @@ pub struct Config {
     pub infer_rate: f32,
     pub learn_rate: f32,
     pub seed: u64,
+    /// Decay rates of the slow top layer's note traces. Empty (the default)
+    /// means a plain single-layer model. Each rate in `(0, 1)` adds one
+    /// leaky trace of the whole stream (`t = d*t + onehot`), which acts as a
+    /// slowly changing top-down prior on the next note.
+    pub slow_decays: Vec<f32>,
 }
 
 impl Default for Config {
@@ -34,6 +39,7 @@ impl Default for Config {
             infer_rate: 0.2,
             learn_rate: 0.05,
             seed: 1,
+            slow_decays: Vec::new(),
         }
     }
 }
@@ -56,6 +62,10 @@ pub struct PcModel {
     last_activity: Vec<f32>,
     /// Reconstruction error of the newest-note slot in the most recent step.
     last_error: Vec<f32>,
+    /// Slow top layer: leaky traces of the stream (`slow_decays.len() * vocab`).
+    trace: Vec<f32>,
+    /// Top-down weights from traces to the next-note slot (vocab x trace dim).
+    u: Mat,
 }
 
 fn softmax(v: &[f32], temp: f32) -> Vec<f32> {
@@ -71,6 +81,12 @@ fn softmax(v: &[f32], temp: f32) -> Vec<f32> {
 impl PcModel {
     pub fn new(cfg: Config) -> Self {
         assert!(cfg.vocab > 0 && cfg.context > 0 && cfg.hidden > 0);
+        assert!(
+            cfg.slow_decays.iter().all(|d| *d > 0.0 && *d < 1.0),
+            "slow decay rates must lie in (0, 1)"
+        );
+        let trace_dim = cfg.slow_decays.len() * cfg.vocab;
+        let cfg_vocab = cfg.vocab;
         let dim = (cfg.context + 1) * cfg.vocab;
         let mut rng = Rng::new(cfg.seed);
         let mut w = Mat::zeros(dim, cfg.hidden);
@@ -82,6 +98,8 @@ impl PcModel {
             history: Vec::new(),
             last_activity: Vec::new(),
             last_error: Vec::new(),
+            trace: vec![0.0; trace_dim],
+            u: Mat::zeros(cfg_vocab, trace_dim),
         }
     }
 
@@ -104,7 +122,10 @@ impl PcModel {
 
     /// Relax the latent state against the first `observed` dims of `x`.
     /// Returns (z, activity = tanh(z)).
-    fn infer(&self, x: &[f32], observed: usize) -> (Vec<f32>, Vec<f32>) {
+    /// `prior` is the top layer's contribution to the newest-note slot; it is
+    /// only subtracted from the error when that slot is observed.
+    fn infer(&self, x: &[f32], observed: usize, prior: &[f32]) -> (Vec<f32>, Vec<f32>) {
+        let newest = self.window_dim() - self.cfg.vocab;
         let h = self.cfg.hidden;
         let mut z: Vec<f32> = vec![0.0; h];
         let mut act = vec![0.0; h];
@@ -116,7 +137,12 @@ impl PcModel {
                 .for_each(|(a, zv)| *a = crate::det::tanh(*zv));
             self.w.mul_vec(&act, &mut pred);
             for (i, p) in pred.iter_mut().enumerate() {
-                *p = if i < observed { x[i] - *p } else { 0.0 };
+                *p = if i < observed {
+                    let top_down = if i >= newest { prior[i - newest] } else { 0.0 };
+                    x[i] - *p - top_down
+                } else {
+                    0.0
+                };
             }
             self.w.tmul_vec(&pred, &mut back);
             for j in 0..h {
@@ -130,15 +156,30 @@ impl PcModel {
         (z, act)
     }
 
+    /// Top-down prior on the next note from the slow layer (zeros if none).
+    fn top_down(&self) -> Vec<f32> {
+        let mut out = vec![0.0; self.cfg.vocab];
+        if !self.trace.is_empty() {
+            self.u.mul_vec(&self.trace, &mut out);
+        }
+        out
+    }
+
     /// Probability of each next symbol given exactly `context` symbols.
     pub fn predict(&self, context: &[usize]) -> Vec<f32> {
         assert_eq!(context.len(), self.cfg.context);
         let x = self.encode(context);
         let observed = self.cfg.context * self.cfg.vocab;
-        let (_, act) = self.infer(&x, observed);
+        let prior = self.top_down();
+        let (_, act) = self.infer(&x, observed, &prior);
         let mut pred = vec![0.0; self.window_dim()];
         self.w.mul_vec(&act, &mut pred);
-        softmax(&pred[observed..], 0.25)
+        let logits: Vec<f32> = pred[observed..]
+            .iter()
+            .zip(&prior)
+            .map(|(a, b)| a + b)
+            .collect();
+        softmax(&logits, 0.25)
     }
 
     /// Distribution over the next symbol given the stream so far, or `None`
@@ -152,11 +193,20 @@ impl PcModel {
     fn learn(&mut self, window: &[usize]) {
         let x = self.encode(window);
         let dim = self.window_dim();
-        let (_, act) = self.infer(&x, dim);
+        let prior = self.top_down();
+        let (_, act) = self.infer(&x, dim, &prior);
         let mut pred = vec![0.0; dim];
         self.w.mul_vec(&act, &mut pred);
+        let newest = dim - self.cfg.vocab;
+        for (p, t) in pred[newest..].iter_mut().zip(&prior) {
+            *p += t;
+        }
         let err: Vec<f32> = x.iter().zip(&pred).map(|(a, b)| a - b).collect();
         self.w.add_outer(self.cfg.learn_rate, &err, &act);
+        if !self.trace.is_empty() {
+            self.u
+                .add_outer(self.cfg.learn_rate, &err[newest..], &self.trace);
+        }
         self.last_error = err[dim - self.cfg.vocab..].to_vec();
         self.last_activity = act;
     }
@@ -191,6 +241,12 @@ impl PcModel {
             window.push(symbol);
             self.learn(&window);
         }
+        for (i, t) in self.trace.iter_mut().enumerate() {
+            *t *= self.cfg.slow_decays[i / self.cfg.vocab];
+            if i % self.cfg.vocab == symbol {
+                *t += 1.0;
+            }
+        }
         self.history.push(symbol);
         if self.history.len() > k {
             self.history.remove(0);
@@ -201,6 +257,7 @@ impl PcModel {
     /// Forget the recent stream (keeps learned weights).
     pub fn reset_context(&mut self) {
         self.history.clear();
+        self.trace.iter_mut().for_each(|t| *t = 0.0);
     }
 }
 
@@ -309,6 +366,72 @@ mod tests {
             s
         };
         assert_eq!(run(), run());
+    }
+
+    /// Three phrases share the 3-note context [0,1,2] but continue
+    /// differently; only the notes *before* the context tell them apart.
+    fn ambiguous_melody() -> Vec<usize> {
+        vec![0, 1, 2, 3, 9, 0, 1, 2, 4, 10, 0, 1, 2, 5, 11]
+    }
+
+    fn loop_accuracy(cfg: Config) -> usize {
+        let mut m = PcModel::new(cfg);
+        let tune = ambiguous_melody();
+        let n = tune.len();
+        for _ in 0..400 {
+            for &s in &tune {
+                m.observe(s);
+            }
+        }
+        // Replay one more pass and score the model's own next-note guesses.
+        let mut correct = 0;
+        for &s in &tune {
+            if let Some(p) = m.next_distribution() {
+                correct += (argmax(&p) == s) as usize;
+            }
+            m.observe(s);
+        }
+        correct.min(n)
+    }
+
+    #[test]
+    fn slow_layer_disambiguates_repeated_contexts() {
+        let one = loop_accuracy(Config::default());
+        let two = loop_accuracy(Config {
+            slow_decays: vec![0.5, 0.85],
+            ..Config::default()
+        });
+        // The 1-layer model cannot tell three continuations of [0,1,2] apart.
+        assert!(one <= 13, "single layer scored {one}/15");
+        assert!(two >= 14, "two-layer scored only {two}/15");
+        assert!(two >= one + 2);
+    }
+
+    #[test]
+    fn two_layer_is_deterministic_and_resets_trace() {
+        let run = || {
+            let mut m = PcModel::new(Config {
+                slow_decays: vec![0.6],
+                ..Config::default()
+            });
+            let mut s = 0.0;
+            for x in ambiguous_melody() {
+                s += m.observe(x).surprise;
+            }
+            m.reset_context();
+            (s, m.next_distribution())
+        };
+        assert_eq!(run(), run());
+        assert!(run().1.is_none());
+    }
+
+    #[test]
+    #[should_panic]
+    fn rejects_bad_slow_decay() {
+        PcModel::new(Config {
+            slow_decays: vec![1.0],
+            ..Config::default()
+        });
     }
 
     #[test]

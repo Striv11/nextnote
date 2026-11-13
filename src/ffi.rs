@@ -27,6 +27,31 @@ pub extern "C" fn nn_new(vocab: u32, context: u32, hidden: u32, seed: u32) -> *m
     Box::into_raw(Box::new(PcModel::new(cfg)))
 }
 
+/// Like `nn_new`, plus `layers`: 1 = single layer, 2 = adds the slow top
+/// layer (note traces with decays 0.5 and 0.85). Other values return null.
+#[no_mangle]
+pub extern "C" fn nn_new_layered(
+    vocab: u32,
+    context: u32,
+    hidden: u32,
+    seed: u32,
+    layers: u32,
+) -> *mut PcModel {
+    let ok = |n: u32| (1..=256).contains(&n);
+    if !(ok(vocab) && ok(context) && ok(hidden)) || !(1..=2).contains(&layers) {
+        return std::ptr::null_mut();
+    }
+    let cfg = Config {
+        vocab: vocab as usize,
+        context: context as usize,
+        hidden: hidden as usize,
+        seed: seed as u64,
+        slow_decays: if layers == 2 { vec![0.5, 0.85] } else { vec![] },
+        ..Config::default()
+    };
+    Box::into_raw(Box::new(PcModel::new(cfg)))
+}
+
 /// Feed one symbol. Returns its surprise in bits (0.0 while warming up), or
 /// a negative value if the handle is null or the symbol out of vocabulary.
 ///
@@ -211,6 +236,27 @@ mod tests {
             }
         }
         assert_eq!(h, 3775367774);
+    }
+
+    #[test]
+    fn layered_constructor_validates_and_matches_single_layer() {
+        unsafe {
+            assert!(nn_new_layered(12, 3, 24, 1, 0).is_null());
+            assert!(nn_new_layered(12, 3, 24, 1, 3).is_null());
+            let (a, b) = (nn_new(12, 3, 24, 1), nn_new_layered(12, 3, 24, 1, 1));
+            let two = nn_new_layered(12, 3, 24, 1, 2);
+            assert!(!two.is_null());
+            let (mut same, mut diff) = (true, false);
+            for &s in TUNE.iter().cycle().take(40) {
+                let (x, y, z) = (nn_observe(a, s), nn_observe(b, s), nn_observe(two, s));
+                same &= x.to_bits() == y.to_bits();
+                diff |= x.to_bits() != z.to_bits();
+            }
+            assert!(same && diff);
+            nn_free(a);
+            nn_free(b);
+            nn_free(two);
+        }
     }
 
     #[test]
