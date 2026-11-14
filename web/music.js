@@ -63,3 +63,53 @@ export function divergingColor(v) {
   const target = t >= 0 ? pos : neg, f = Math.abs(t);
   return `rgb(${mix(grey[0], target[0], f)}, ${mix(grey[1], target[1], f)}, ${mix(grey[2], target[2], f)})`;
 }
+
+/**
+ * Sample a note from `probs` after applying a softmax-style temperature (p^(1/T), renormalised).
+ * T near 0 approaches argmax, T = 1 samples the distribution as is, T > 1 flattens it.
+ * `rand` is a () => [0,1) source (injectable for tests). Returns -1 when there are no predictions.
+ */
+export function sampleNote(probs, temperature = 1, rand = Math.random) {
+  if (!probs || probs.length === 0) return -1;
+  const T = Math.max(temperature, 0.05);
+  const w = Array.from(probs, (p) => (p > 0 ? Math.pow(p, 1 / T) : 0));
+  const total = w.reduce((a, b) => a + b, 0);
+  if (!(total > 0)) return -1;
+  let r = rand() * total;
+  for (let i = 0; i < w.length; i++) {
+    r -= w[i];
+    if (r < 0) return i;
+  }
+  return w.length - 1; // floating-point slack
+}
+
+/** Small preset tunes (note indices 0..11) to teach the model. */
+export const PRESETS = {
+  "Twinkle": [0, 0, 7, 7, 9, 9, 7, 5, 5, 4, 4, 2, 2, 0],
+  "Ode to Joy": [4, 4, 5, 7, 7, 5, 4, 2, 0, 0, 2, 4, 4, 2, 2],
+  "Scale up and down": [0, 2, 4, 5, 7, 9, 11, 9, 7, 5, 4, 2],
+  "Arpeggio": [0, 4, 7, 4, 0, 4, 7, 11, 7, 4],
+};
+
+export const SESSION_VERSION = 1;
+
+/**
+ * A session is the model config plus every note played. Because the model is deterministic per
+ * seed, replaying the notes into a fresh model reproduces its weights exactly, so this tiny JSON
+ * is a complete save file.
+ */
+export function serializeSession({ layers, notes }) {
+  return JSON.stringify({ app: "nextnote", version: SESSION_VERSION, layers, notes });
+}
+
+/** Parse and validate a session; throws an Error with a user-facing message when invalid. */
+export function parseSession(text, vocab = 12, maxNotes = 5000) {
+  let o;
+  try { o = JSON.parse(text); } catch { throw new Error("not valid JSON"); }
+  if (!o || o.app !== "nextnote") throw new Error("not a nextnote session");
+  if (o.version !== SESSION_VERSION) throw new Error(`unsupported version ${o.version}`);
+  if (o.layers !== 1 && o.layers !== 2) throw new Error("layers must be 1 or 2");
+  if (!Array.isArray(o.notes) || o.notes.length > maxNotes) throw new Error("notes missing or too long");
+  if (!o.notes.every((n) => Number.isInteger(n) && n >= 0 && n < vocab)) throw new Error("notes out of range");
+  return { layers: o.layers, notes: o.notes };
+}

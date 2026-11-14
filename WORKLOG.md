@@ -37,3 +37,11 @@ Newest entries at the bottom. Each entry records what actually changed, what was
 - Exposed as `nn_new_layered(..., layers)` (the old `nn_new` is untouched), `create(..., layers)` in JS, and a `Memory` selector in the UI that resets the model. Rust and Node tests cover validation.
 - Caveat: the UI selector is not browser-tested (still no browser here), same as day 4. Decays 0.5/0.85 are hand-picked, not tuned.
 - Next: finish day 4 Playwright e2e if a browser is available; otherwise day 6 (improvisation, presets, IndexedDB persistence).
+
+## 2026-11-14 (day 6)
+- Added improvisation: `sampleNote` samples the model's prediction with a temperature (p^(1/T) renormalised); an `Improvise` button plays the samples back, with a temperature slider. Preset tunes (`PRESETS`) can be taught from a selector.
+- Persistence without touching the Rust core: a session is `{layers, notes}`. Since the model is deterministic per seed, replaying the notes rebuilds the exact weights; a new Node bridge test asserts two replays give identical predictions and activity. `parseSession` validates version, layers, note range and length. Stored in IndexedDB (`web/persist.js`) and exported/imported as JSON.
+- Shortcuts: `Space` improvise, `Backspace` reset, `?`/`Esc` help overlay.
+- Caveat: the DOM, IndexedDB and audio glue is only syntax-checked (no browser here); pure logic has Node tests. Replay cost grows with session length (capped at 5000 notes).
+- Learned: the wasm target had to be re-added in this environment before `check.sh` could pass.
+- Next: day 7 (benchmark with asserted budget, bundle size check, screenshots, e2e if a browser is available).

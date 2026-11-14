@@ -34,7 +34,7 @@ it runs entirely in your browser: no server, no API keys, nothing leaves your de
 - `src/rng.rs`: deterministic splitmix64 (reproducible, no OS randomness needed in WASM).
 - `src/mat.rs`: minimal dense matrix ops.
 - `src/model.rs`: the predictive-coding model (`PcModel`). Optional slow top layer (`Config::slow_decays`): leaky traces of the whole stream feed a learned top-down prior on the next note, so the model can tell apart phrases that share the same last 3 notes. Pick it in the UI with the `Memory` selector (`nn_new_layered`).
-- `web/`: the static site. `music.js` is pure, unit-tested logic; `app.js` is the DOM/Web Audio glue.
+- `web/`: the static site. `music.js` is pure, unit-tested logic (sampling, presets, session format); `persist.js` is the IndexedDB wrapper; `app.js` is the DOM/Web Audio glue.
 
 Invariants: same seed and same input gives bit-identical behaviour; predictions always form a probability distribution.
 
@@ -49,7 +49,7 @@ cargo run --release  # terminal demo
 Terminal demo works today (`cargo run --release`): it loops a 14-note tune and prints total surprise per pass; the
 bar shrinks from ~45 bits on pass 1 to ~7.5 bits by pass 60 as the model learns it.
 
-The in-browser instrument (`web/`): click, tap or type `A W S E D F T G Y H U J` to play; the model's expected next key is outlined and probability bars show its full prediction. Below the keys: a surprise-per-note timeline, a latent-activity strip and a prediction-error strip for the last note (orange = under-predicted, blue = over-predicted). Browser e2e tests are still open (see [PLAN.md](PLAN.md)). To try locally: build the wasm, copy it to `web/nextnote.wasm`, and serve `web/` (e.g. `python3 -m http.server -d web`).
+The in-browser instrument (`web/`): click, tap or type `A W S E D F T G Y H U J` to play; the model's expected next key is outlined and probability bars show its full prediction. Below the keys: a surprise-per-note timeline, a latent-activity strip and a prediction-error strip for the last note (orange = under-predicted, blue = over-predicted). Day 6 adds an `Improvise` button (the model plays its own predictions, sampled with an adjustable temperature), preset tunes to teach it, Save/Load (IndexedDB) and JSON export/import, and a shortcuts overlay (`?`; `Space` improvises, `Backspace` resets). A saved session is just the layer setting plus the notes played: the model is deterministic, so replaying them rebuilds identical weights (tested in the Node bridge test). Browser e2e tests are still open (see [PLAN.md](PLAN.md)). To try locally: build the wasm, copy it to `web/nextnote.wasm`, and serve `web/` (e.g. `python3 -m http.server -d web`).
 
 ## Design decisions & trade-offs
 - One-hot window of the last K notes instead of a recurrent state: simple, local, and easy to visualize; the optional
@@ -64,7 +64,7 @@ The in-browser instrument (`web/`): click, tap or type `A W S E D F T G Y H U J`
 - [x] Playable instrument UI (day 3)
 - [~] Surprise and activity visuals (done), e2e tests (open) (day 4)
 - [x] Two-layer model (day 5)
-- [ ] Improvisation, presets, persistence (day 6)
+- [x] Improvisation, presets, persistence (day 6)
 - [ ] Benchmarks, screenshots, polish (day 7)
 
 ## License

@@ -72,3 +72,13 @@ test("layered model: layers option validated, 2 layers differs from 1", () => {
   assert.ok(diff);
   a.free(); b.free();
 });
+
+test("replaying a note list reproduces the model exactly (basis of save/load)", () => {
+  const notes = TUNE.concat(TUNE, TUNE);
+  const a = nn.create(12, 3, 24, 1, 2), b = nn.create(12, 3, 24, 1, 2);
+  for (const n of notes) a.observe(n);
+  for (const n of notes) b.observe(n);
+  assert.deepEqual([...a.predict()], [...b.predict()]);
+  assert.deepEqual([...a.activity()], [...b.activity()]);
+  a.free(); b.free();
+});

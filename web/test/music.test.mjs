@@ -61,3 +61,44 @@ test("divergingColor is neutral at 0, warm positive, cool negative, clamped", ()
   assert.equal(divergingColor(5), divergingColor(1));
   assert.equal(divergingColor(NaN), divergingColor(0));
 });
+
+import { sampleNote, PRESETS, serializeSession, parseSession } from "../music.js";
+
+test("sampleNote: low temperature is argmax, T=1 follows the distribution", () => {
+  const p = [0.1, 0.6, 0.3];
+  let seed = 7;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+  for (let i = 0; i < 50; i++) assert.equal(sampleNote(p, 0.05, rand), 1);
+  const counts = [0, 0, 0];
+  for (let i = 0; i < 6000; i++) counts[sampleNote(p, 1, rand)]++;
+  assert.ok(Math.abs(counts[1] / 6000 - 0.6) < 0.03);
+  assert.ok(Math.abs(counts[0] / 6000 - 0.1) < 0.03);
+});
+
+test("sampleNote: high temperature flattens, edge cases", () => {
+  const p = [0.05, 0.9, 0.05];
+  let k = 0;
+  const rand = () => [0.01, 0.5, 0.99][k++ % 3];
+  const seen = new Set();
+  for (let i = 0; i < 9; i++) seen.add(sampleNote(p, 20, rand));
+  assert.equal(seen.size, 3);
+  assert.equal(sampleNote(null), -1);
+  assert.equal(sampleNote([0, 0]), -1);
+  assert.equal(sampleNote([0, 1], 1, () => 0.9999999), 1);
+});
+
+test("presets only use valid notes", () => {
+  for (const notes of Object.values(PRESETS)) assert.ok(notes.length >= 8 && notes.every((n) => n >= 0 && n < 12));
+});
+
+test("session round-trips and rejects bad input", () => {
+  const s = { layers: 2, notes: [0, 4, 7] };
+  assert.deepEqual(parseSession(serializeSession(s)), s);
+  assert.throws(() => parseSession("{"), /JSON/);
+  assert.throws(() => parseSession('{"app":"x"}'), /not a nextnote/);
+  assert.throws(() => parseSession(serializeSession({ layers: 3, notes: [] })), /layers/);
+  assert.throws(() => parseSession(serializeSession({ layers: 1, notes: [12] })), /range/);
+  assert.throws(() => parseSession(serializeSession({ layers: 1, notes: [1.5] })), /range/);
+  assert.throws(() => parseSession(JSON.stringify({ app: "nextnote", version: 9, layers: 1, notes: [] })), /version/);
+  assert.throws(() => parseSession(serializeSession({ layers: 1, notes: [0, 0, 0] }), 12, 2), /too long/);
+});

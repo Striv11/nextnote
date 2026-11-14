@@ -26,6 +26,12 @@ button#reset{font:inherit;padding:.3rem .9rem;border-radius:8px;border:1px solid
 canvas{width:100%;display:block;border-radius:6px;background:color-mix(in srgb,var(--muted) 12%,transparent)}
 h2{font-size:1rem;margin:1rem 0 .3rem}
 .hint{font-size:.85rem;color:var(--muted);margin:.2rem 0}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.6rem 0}
+.row button,.row select{font:inherit;padding:.3rem .8rem;border-radius:8px;border:1px solid var(--muted);background:none;color:var(--fg);cursor:pointer}
+#msg{font-size:.9rem;color:var(--muted)}#msg.error{color:#c0392b}
+#help{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center}
+#help[hidden]{display:none}#help div{background:var(--card);padding:1.25rem 1.5rem;border-radius:12px;max-width:26rem}
+kbd{border:1px solid var(--muted);border-radius:4px;padding:0 .3rem}
 body:not(.ready) #keys{opacity:.5;pointer-events:none}
 </style>
 </head>
@@ -50,6 +56,26 @@ and the bars below show its probability for every note.</p>
 <p class="hint">Orange: the model under-predicted this note. Blue: it over-predicted it. Grey: no error.</p>
 <p><label>Memory <select id="layers"><option value="1">1 layer (last 3 notes)</option><option value="2">2 layers (adds slow memory)</option></select></label> <button id="reset" type="button">Reset model</button> <span id="status">Loading model&hellip;</span></p>
 </div>
+<div class="card">
+<div class="row">
+<button id="improvise" type="button" aria-pressed="false">Improvise</button>
+<label>Temperature <input id="temp" type="range" min="0.2" max="2" step="0.1" value="0.8"></label>
+<select id="preset" aria-label="Teach a preset tune"><option value="">Teach a tune&hellip;</option><option>Twinkle</option><option>Ode to Joy</option><option>Scale up and down</option><option>Arpeggio</option></select>
+</div>
+<div class="row">
+<button id="save" type="button">Save</button><button id="load" type="button">Load</button>
+<button id="export" type="button">Export JSON</button>
+<label class="row" style="margin:0">Import <input id="import" type="file" accept="application/json,.json"></label>
+<button id="helpbtn" type="button">Shortcuts (?)</button>
+</div>
+<p id="msg" role="status"></p>
+<p class="hint">Improvise lets the model play what it expects, sampled with the chosen temperature (low = safe, high = adventurous). Saved sessions live only in this browser (IndexedDB).</p>
+</div>
+<div id="help" hidden role="dialog" aria-label="Keyboard shortcuts"><div>
+<h2>Shortcuts</h2>
+<p><kbd>A</kbd> <kbd>W</kbd> <kbd>S</kbd> <kbd>E</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>T</kbd> <kbd>G</kbd> <kbd>Y</kbd> <kbd>H</kbd> <kbd>U</kbd> <kbd>J</kbd> play notes<br>
+<kbd>Space</kbd> start or stop improvising<br><kbd>Backspace</kbd> reset the model<br><kbd>?</kbd> toggle this help, <kbd>Esc</kbd> close</p>
+<button id="helpclose" type="button">Close</button></div></div>
 <p class="lead" style="font-size:.9rem">Everything runs in your browser (Rust compiled to WebAssembly). Nothing is sent anywhere.</p>
 </main>
 <script type="module" src="app.js"></script>
