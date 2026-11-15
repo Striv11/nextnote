@@ -65,7 +65,7 @@ The in-browser instrument (`web/`): click, tap or type `A W S E D F T G Y H U J`
 - [~] Surprise and activity visuals (done), e2e tests (open) (day 4)
 - [x] Two-layer model (day 5)
 - [x] Improvisation, presets, persistence (day 6)
-- [ ] Benchmarks, screenshots, polish (day 7)
+- [~] Benchmark and bundle budgets (done, asserted in CI), screenshots and e2e (open) (day 7)
 
 ## License
 MIT. See [LICENSE](LICENSE).

@@ -10,7 +10,7 @@ Seven-day arc. Every milestone has acceptance criteria that can be checked by a 
 | 4 | Surprise and learning visuals | Live surprise-per-note timeline (canvas); latent-activity heatmap; prediction-error view; loading and error states; Playwright e2e covers play, predict, reset (visuals, `nn_activity`/`nn_error` and tests done; Playwright e2e still open, no browser available in the build environment) | [~] |
 | 5 | Richer model: two layers and longer memory | Hierarchical (2-level) PC with a slower top layer; test that it disambiguates a melody with repeated 3-note contexts that the 1-layer model cannot (accuracy gap asserted); selectable in UI (slow top layer = leaky note traces giving a top-down prior; `Memory` selector in the UI) | [x] |
 | 6 | Auto-play, presets, persistence | Model "improvises" by sampling its predictions (with temperature); preset tunes; save/load weights in IndexedDB; export/import JSON; keyboard shortcuts with help overlay (weights are persisted as config + note list, which replays deterministically to identical weights; DOM/IndexedDB layer not browser-tested) | [x] |
-| 7 | Polish, performance, docs | Benchmark: observe() under 1 ms median at default size, budget asserted in CI; bundle (.wasm + JS) under 150 KB; screenshots in README; full e2e suite; final README/roadmap | [ ] |
+| 7 | Polish, performance, docs | Benchmark: observe() under 1 ms median at default size, budget asserted in CI; bundle (.wasm + JS) under 150 KB; screenshots in README; full e2e suite; final README/roadmap (benchmark and bundle budgets asserted in `web/test/perf.test.mjs`; screenshots and browser e2e still open: no browser here) | [~] |
 
 ## Stretch
 - Microphone pitch input (autocorrelation) as a melody source.

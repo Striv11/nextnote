@@ -45,3 +45,9 @@ Newest entries at the bottom. Each entry records what actually changed, what was
 - Caveat: the DOM, IndexedDB and audio glue is only syntax-checked (no browser here); pure logic has Node tests. Replay cost grows with session length (capped at 5000 notes).
 - Learned: the wasm target had to be re-added in this environment before `check.sh` could pass.
 - Next: day 7 (benchmark with asserted budget, bundle size check, screenshots, e2e if a browser is available).
+
+## 2026-11-15 (day 7)
+- Added `web/test/perf.test.mjs`, run by `check.sh`: median `observe()` over 2000 calls on the release wasm must be under 1 ms (1 and 2 layers; measured around 0.03 ms), and wasm + JS bundle must be under 150 KB (about 58 KB).
+- Not done: screenshots and Playwright e2e (still no browser in this environment). Day 7 and day 4 stay partial rather than ticked.
+- Learned: the wasm target again had to be installed before `check.sh` could run.
+- Next: e2e and screenshots once a browser is available; otherwise stretch items (n-gram baseline comparison).
